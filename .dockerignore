@@ -1,0 +1,14 @@
+node_modules
+dist
+server/generated
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+.idea
+.vscode
+README.md
+data

@@ -1,0 +1,242 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../server/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ALUNO
+  TI
+  ADMINISTRACAO
+  ADMIN
+}
+
+enum AssetStatus {
+  EM_USO
+  DISPONIVEL
+  EMPRESTADO
+  EM_MANUTENCAO
+  DANIFICADO
+  EXTRAVIADO
+  BAIXADO
+}
+
+enum Visibility {
+  PUBLICO
+  INTERNO
+  RESTRITO
+}
+
+enum LoanStatus {
+  EMPRESTADO
+  DEVOLVIDO
+  ATRASADO
+}
+
+enum MaintenanceStatus {
+  AGUARDANDO
+  EM_MANUTENCAO
+  AGUARDANDO_PECA
+  CONCLUIDO
+  SEM_REPARO
+}
+
+enum TicketStatus {
+  NOVO
+  EM_TRIAGEM
+  EM_ATENDIMENTO
+  RESOLVIDO
+}
+
+enum TicketCategory {
+  EQUIPAMENTO_DANIFICADO
+  FALHA_DE_SISTEMA
+  DUVIDA
+  OUTRO
+}
+
+enum InspectionStatus {
+  AGENDADA
+  EM_ANDAMENTO
+  CONCLUIDA
+}
+
+model User {
+  id           String       @id @default(uuid())
+  name         String
+  email        String       @unique
+  passwordHash String
+  role         UserRole
+  active       Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  createdUsers User[]       @relation("UserCreator")
+  createdBy    User?        @relation("UserCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById  String?
+  movements    Movement[]
+  inspections  Inspection[]
+  inventorySessions InventorySession[]
+  auditLogs    AuditLog[]
+}
+
+model Asset {
+  id           String       @id @default(uuid())
+  code         String       @unique
+  name         String
+  description  String       @default("")
+  category     String
+  brand        String
+  model        String
+  serial       String
+  responsible  String
+  sector       String
+  room         String
+  building     String
+  campus       String
+  condition    String
+  deliveryDate String
+  status       AssetStatus  @default(EM_USO)
+  invoice      String
+  value        Float        @default(0)
+  notes        String       @default("")
+  visibility   Visibility   @default(INTERNO)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  movements    Movement[]
+  loans        Loan[]
+  maintenances Maintenance[]
+  tickets      Ticket[]
+  inventoryScans InventoryScan[]
+
+  @@index([name])
+  @@index([category])
+  @@index([status])
+  @@index([building, room])
+}
+
+model Movement {
+  id                    String   @id @default(uuid())
+  asset                  Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  assetId                String
+  from                   String
+  to                     String
+  previousResponsible    String
+  newResponsible         String
+  reason                 String
+  performedBy            User?    @relation(fields: [performedById], references: [id], onDelete: SetNull)
+  performedById          String?
+  performedByName        String
+  createdAt              DateTime @default(now())
+
+  @@index([assetId, createdAt])
+}
+
+model Loan {
+  id         String     @id @default(uuid())
+  asset      Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  assetId    String
+  requester  String
+  dueDate    DateTime
+  status     LoanStatus @default(EMPRESTADO)
+  createdAt  DateTime   @default(now())
+  returnedAt DateTime?
+
+  @@index([status, dueDate])
+}
+
+model Maintenance {
+  id         String            @id @default(uuid())
+  asset      Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  assetId    String
+  issue      String
+  technician String            @default("Não atribuído")
+  status     MaintenanceStatus @default(AGUARDANDO)
+  openedAt   DateTime          @default(now())
+  closedAt   DateTime?
+  cost       Float             @default(0)
+
+  @@index([status, openedAt])
+}
+
+model Ticket {
+  id          String         @id @default(uuid())
+  asset       Asset?         @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  assetId     String?
+  requester   String
+  contact     String
+  location    String
+  category    TicketCategory
+  description String
+  audience    Json
+  status      TicketStatus   @default(NOVO)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model ChecklistTemplate {
+  id          String       @id @default(uuid())
+  name        String
+  location    String
+  items       Json
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  inspections Inspection[]
+}
+
+model Inspection {
+  id             String           @id @default(uuid())
+  template        ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  templateId      String
+  inspector       User?            @relation(fields: [inspectorId], references: [id], onDelete: SetNull)
+  inspectorId     String?
+  inspectorName   String
+  scheduledDate   DateTime
+  notes           String           @default("")
+  completedItems  Json
+  totalItems      Int
+  status          InspectionStatus @default(AGENDADA)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([scheduledDate, status])
+}
+
+model InventorySession {
+  id          String          @id @default(uuid())
+  name        String
+  location    String
+  startedBy   User            @relation(fields: [startedById], references: [id], onDelete: Restrict)
+  startedById String
+  startedAt   DateTime        @default(now())
+  finishedAt  DateTime?
+  scans       InventoryScan[]
+}
+
+model InventoryScan {
+  id        String           @id @default(uuid())
+  session   InventorySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  asset     Asset            @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  assetId   String
+  scannedAt DateTime         @default(now())
+
+  @@unique([sessionId, assetId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId     String?
+  action     String
+  entity     String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}

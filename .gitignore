@@ -1,0 +1,39 @@
+# Dependências e artefatos gerados
+node_modules/
+dist/
+server/generated/
+coverage/
+*.tsbuildinfo
+
+# Variáveis, credenciais e certificados locais
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Bancos e dumps locais
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sql.gz
+*.dump
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editores e sistema operacional
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Cache de ferramentas
+.eslintcache
+.prisma/
