@@ -170,6 +170,7 @@ model Ticket {
   location    String
   category    TicketCategory
   description String
+  imageData   String?        @db.Text
   audience    Json
   status      TicketStatus   @default(NOVO)
   createdAt   DateTime       @default(now())

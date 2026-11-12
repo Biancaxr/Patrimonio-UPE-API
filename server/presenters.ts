@@ -64,15 +64,19 @@ export const presentMaintenance = (item: Maintenance & { asset: Pick<Asset, 'cod
   closedAt: item.closedAt?.toISOString() ?? null,
 })
 
-export const presentTicket = (item: Ticket & { asset: Pick<Asset, 'code' | 'name'> | null }) => ({
-  ...item,
-  assetCode: item.asset?.code,
-  assetName: item.asset?.name,
-  category: ticketCategory[item.category],
-  status: ticketStatus[item.status],
-  createdAt: item.createdAt.toISOString(),
-  updatedAt: item.updatedAt.toISOString(),
-})
+export const presentTicket = (item: Ticket & { asset: Pick<Asset, 'code' | 'name'> | null }) => {
+  const { imageData, ...ticket } = item
+  return {
+    ...ticket,
+    hasImage: Boolean(imageData),
+    assetCode: item.asset?.code,
+    assetName: item.asset?.name,
+    category: ticketCategory[item.category],
+    status: ticketStatus[item.status],
+    createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
+  }
+}
 
 export const presentInspection = (item: Inspection & { template: { name: string; location: string } }) => ({
   ...item,

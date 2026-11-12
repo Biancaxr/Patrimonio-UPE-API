@@ -26,7 +26,7 @@ const origins = (process.env.WEB_ORIGIN || 'http://localhost:5173').split(',').m
 
 app.use(helmet())
 app.use(cors({ origin: origins, credentials: false }))
-app.use(express.json({ limit: '2mb' }))
+app.use(express.json({ limit: '5mb' }))
 
 const asyncRoute = (handler: (request: Request, response: Response) => Promise<unknown>) =>
   (request: Request, response: Response, next: NextFunction) => {
@@ -145,7 +145,7 @@ app.get('/api/public/assets/:code', asyncRoute(async (request, response) => {
 }))
 
 app.post('/api/public/tickets', asyncRoute(async (request, response) => {
-  const input = z.object({ assetId: z.string().optional(), requester: z.string().min(2), contact: z.string().min(2), location: z.string().min(1), category: z.string(), description: z.string().min(5), audience: z.array(z.string()).default(['Administrativo']) }).parse(request.body)
+  const input = z.object({ assetId: z.string().optional(), requester: z.string().min(2), contact: z.string().min(2), location: z.string().min(1), category: z.string(), description: z.string().min(5), audience: z.array(z.string()).default(['Administrativo']), imageData: z.string().max(4_000_000).regex(/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]*={0,2}$/).optional() }).parse(request.body)
   const ticket = await prisma.ticket.create({ data: { ...input, category: ticketCategoryInput[input.category] ?? TicketCategory.OUTRO }, include: { asset: { select: { code: true, name: true } } } })
   return response.status(201).json(presentTicket(ticket))
 }))
@@ -297,6 +297,12 @@ app.patch('/api/inspections/:id', allow(UserRole.ADMIN, UserRole.ADMINISTRACAO, 
 app.get('/api/tickets', allow(UserRole.ADMIN, UserRole.ADMINISTRACAO, UserRole.TI), asyncRoute(async (_request, response) => {
   const items = await prisma.ticket.findMany({ include: { asset: { select: { code: true, name: true } } }, orderBy: { createdAt: 'desc' } })
   response.json(items.map(presentTicket))
+}))
+
+app.get('/api/tickets/:id/image', allow(UserRole.ADMIN, UserRole.ADMINISTRACAO, UserRole.TI), asyncRoute(async (request, response) => {
+  const ticket = await prisma.ticket.findUnique({ where: { id: routeParam(request.params.id) }, select: { imageData: true } })
+  if (!ticket?.imageData) return response.status(404).json({ message: 'Imagem do chamado não encontrada.' })
+  response.json({ imageData: ticket.imageData })
 }))
 
 app.patch('/api/tickets/:id', allow(UserRole.ADMIN, UserRole.ADMINISTRACAO, UserRole.TI), asyncRoute(async (request, response) => {
