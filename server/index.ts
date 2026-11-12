@@ -76,6 +76,14 @@ const electronicAssetWhere: Prisma.AssetWhereInput = {
 
 const assetAccessWhere = (role?: UserRole): Prisma.AssetWhereInput => role === UserRole.TI ? electronicAssetWhere : {}
 
+type AssetSearchField = 'code' | 'name' | 'category' | 'serial' | 'brand' | 'model' | 'sector'
+
+const assetSearchWhere = (query: string, fields: readonly AssetSearchField[]): Prisma.AssetWhereInput => ({
+  AND: query.trim().split(/\s+/).filter(Boolean).map((term) => ({
+    OR: fields.map((field) => ({ [field]: { contains: term, mode: 'insensitive' as const } })),
+  })),
+})
+
 const assetBody = z.object({
   code: z.string().trim().min(1), name: z.string().trim().min(1), description: z.string().default(''),
   category: z.string().min(1), brand: z.string().default('Não informada'), model: z.string().default('Não informado'),
@@ -123,11 +131,7 @@ app.get('/api/public/assets', asyncRoute(async (request, response) => {
   const assets = await prisma.asset.findMany({
     where: {
       visibility: Visibility.PUBLICO,
-      OR: [
-        { code: { contains: query, mode: 'insensitive' } },
-        { name: { contains: query, mode: 'insensitive' } },
-        { category: { contains: query, mode: 'insensitive' } },
-      ],
+      ...assetSearchWhere(query, ['code', 'name', 'category', 'brand', 'model', 'sector']),
     },
     orderBy: { name: 'asc' },
     take: 6,
@@ -161,7 +165,7 @@ app.get('/api/dashboard', allow(UserRole.ADMIN, UserRole.ADMINISTRACAO), asyncRo
 app.get('/api/assets', asyncRoute(async (request, response) => {
   const query = String(request.query.q || '').trim()
   const filters: Prisma.AssetWhereInput[] = [assetAccessWhere(request.user?.role)]
-  if (query) filters.push({ OR: [{ code: { contains: query, mode: 'insensitive' } }, { name: { contains: query, mode: 'insensitive' } }, { serial: { contains: query, mode: 'insensitive' } }] })
+  if (query) filters.push(assetSearchWhere(query, ['code', 'name', 'serial', 'brand', 'model', 'sector']))
   const assets = await prisma.asset.findMany({
     where: { AND: filters },
     orderBy: { name: 'asc' },
